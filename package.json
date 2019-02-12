@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "set PORT=3080 node index.js",
+    "start": "PORT=3080 node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
