@@ -33,9 +33,9 @@ if (!apiKey || !apiSecret) {
 
 // Starts the express app
 function init() {
-  let port = process.env.port || 3080;
+  let port = process.env.PORT || 3080;
   app.listen(port, function () {
-    console.log('You\'re app is now ready at http://localhost:3080/');
+    console.log('You\'re app is now ready at' + port);
   });
 }
 
