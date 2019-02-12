@@ -10,7 +10,7 @@ var axios = require('axios');
 
 var connectionIdArrayTimeouts = {};
 
-app.options('*', cors());
+app.use(cors());
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
@@ -33,7 +33,8 @@ if (!apiKey || !apiSecret) {
 
 // Starts the express app
 function init() {
-  app.listen(3080, function () {
+  let port = process.env.port || 3080;
+  app.listen(port, function () {
     console.log('You\'re app is now ready at http://localhost:3080/');
   });
 }
