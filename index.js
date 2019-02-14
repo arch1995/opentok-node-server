@@ -137,16 +137,9 @@ app.post('/events', function(req, res) {
     }
   } else if (object.event === "streamDestroyed" && object.reason === 'networkDisconnected') {
     var sessionId = object.sessionId;
-    var connectionId = null;
-    var payload = {
-      data: JSON.stringify(object),
-      type: 'streamDestroyedSignal'
-    }
-    opentok.signal(sessionId, connectionId, payload, function(err, data) {
-      if (err) console.log("connection_err", err);
-      console.log("data", data);
-      res.send({ statusCode: 200 })
-    })
+    var connectionId = object.stream.connection.id;
+    delete connectionIdArrayTimeouts[connectionId];
+    
   } else {
     res.send({ statusCode: 200 })
   }
