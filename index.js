@@ -39,9 +39,6 @@ function init() {
   });
 }
 
-// Initialize the express app
-// app.use(express.static(__dirname + '/public')); //
-
 // Initialize OpenTok
 opentok = new OpenTok(apiKey, apiSecret);
 
@@ -71,6 +68,9 @@ function sendConnectedOrReconnectedSignal(connectionID, isConnectedBack = false)
   var sessionId = app.get('sessionId');
   var object = connectionIdArrayTimeouts[connectionID];
   var type = isConnectedBack ? 'streamReconnected' : 'streamTemporarilyDisconnected'
+  connectionIdArrayTimeouts[connectionID]["isTemporarilyDisconnected"] = !isConnectedBack;
+  console.log("connection_id", connectionIdArrayTimeouts);
+  
   var payload = {
     data: JSON.stringify({ 
       streamName: object.streamName,
@@ -86,14 +86,15 @@ function sendConnectedOrReconnectedSignal(connectionID, isConnectedBack = false)
       console.log("err", err);
     } else {
       console.log("data", data);
-      connectionIdArrayTimeouts[connectionID]["isTemporarilyDisconnected"] = !isConnectedBack;
     }
   })
 }
 
 function setTimer(connectionId) {
-  connectionIdArrayTimeouts[connectionId]["timeout"] = setTimeout(() => {
-    sendConnectedOrReconnectedSignal(connectionId);
+  connectionIdArrayTimeouts[connectionId]["timeout"] = setTimeout(function () {
+    if (!connectionIdArrayTimeouts[connectionId].isTemporarilyDisconnected) {
+      sendConnectedOrReconnectedSignal(connectionId);
+    }
   }, 6000)
 }
 
@@ -103,14 +104,18 @@ function sendSignal(connectionId, signalType = "verifyConnection") {
     data: JSON.stringify({ connectionId }),
     type: signalType
   }
+
   opentok.signal(sessionId, connectionId, payload, function(err, data) {
-    if (err) {
-      console.log("send_signal_err", err);
-    } else {
-      setTimer(connectionId);
+  if (err) {
+    console.log("send_signal_err", err);
+    
+  } else {
+      if (!connectionIdArrayTimeouts[connectionId]["timeout"]) {
+        setTimer(connectionId);
+      }
     }
   })
-}
+} 
 
 function clearTimer(connectionID) {
   clearTimeout(connectionIdArrayTimeouts[connectionID]["timeout"]);
@@ -133,13 +138,19 @@ app.post('/events', function(req, res) {
         projectId: projectId, 
         isTemporarilyDisconnected: false
       }
-      sendSignal(connectionId);
+      connectionIdArrayTimeouts[connectionId]["interval"] = setInterval(function() {
+        sendSignal(connectionId);
+      }, 3000)
+      
     }
-  } else if (object.event === "streamDestroyed" && object.reason === 'networkDisconnected') {
+  } else if (object.event === "streamDestroyed") {
     var sessionId = object.sessionId;
     var connectionId = object.stream.connection.id;
+    if(connectionIdArrayTimeouts[connectionId]) {
+      clearInterval(connectionIdArrayTimeouts[connectionId]["interval"]);
+      clearTimeout(connectionIdArrayTimeouts[connectionId]["timeout"])
+    }
     delete connectionIdArrayTimeouts[connectionId];
-    
   } else {
     res.send({ statusCode: 200 })
   }
@@ -156,9 +167,5 @@ app.post('/connectionVerified', function(req, res) {
     if (connectionIdArrayTimeouts[connectionID]["isTemporarilyDisconnected"]) {
       sendConnectedOrReconnectedSignal(connectionID, true);
     }
-    // send verification signal after 2s.
-    setTimeout(function () {
-      sendSignal(connectionID)
-    }, 2000);
   }
 })
